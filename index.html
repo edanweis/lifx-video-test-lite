@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>LIFX test</title>
+</head>
+<body>
+<div id="player"></div>
+<div>
+<input id="token" value="c46b3b01dc4556db9a361c3a5fdf92e44d3d052026f7eb29e359b399179b1e7d" style="width: 600px">
+</div>
+<p id="output"></p>
+<p id="status"></p>
+<p id="error"></p>
+<p id="data"></p>
+	
+
+<script>
+		  
+// 2. This code loads the IFrame Player API code asynchronously.
+		  var intervalID;
+		  var token;
+	      var tag = document.createElement('script');
+	      var pulsed = false;
+	      tag.src = "https://www.youtube.com/iframe_api";
+	      var firstScriptTag = document.getElementsByTagName('script')[0];
+	      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+	      // 3. This function creates an <iframe> (and YouTube player)
+	      //    after the API code downloads.
+	      var player;
+	      function onYouTubeIframeAPIReady() {
+	        player = new YT.Player('player', {
+	          height: '390',
+	          width: '640',
+	          videoId: 'M7lc1UVf-VE',
+	          events: {
+	            'onReady': onPlayerReady,
+	            'onStateChange': onPlayerStateChange
+	          }
+	        });
+	      }
+
+	      // 4. The API will call this function when the video player is ready.
+	      function onPlayerReady(event) {
+	        event.target.playVideo();
+	      }
+	      function pollVideo(){
+      		console.log(player.getCurrentTime())
+      		token = document.getElementById('token').value
+      		if ((player.getCurrentTime() > 3 && player.getCurrentTime() < 5) && pulsed == false){
+      			queryLIFX(token);
+      		}
+	      }
+
+	      // 5. The API calls this function when the player's state changes.
+	      //    The function indicates that when playing a video (state=1),
+	      //    the player should play for six seconds and then stop.
+	      var done = false;
+	      function onPlayerStateChange(event) {
+	        if (event.data == YT.PlayerState.PAUSED && !done) {
+	          clearInterval(intervalID);
+	          pulsed = false;
+	        } else if( event.data == YT.PlayerState.PLAYING && !done ) {
+	          intervalID = setInterval(pollVideo, 1000);
+	        }
+	      }
+	      function stopVideo() {
+	        player.stopVideo();
+	      }
+
+	      function queryLIFX(token){
+	        
+		      	var xhr = new XMLHttpRequest();
+				xhr.open('GET', encodeURI('https://api.lifx.com/v1/lights/all'));
+		      	xhr.setRequestHeader("Authorization", "Bearer " + token);
+				xhr.onload = function() {			    
+				        var result = xhr.responseText;
+				        var status = xhr.statusText;
+				        logResult({response: result,
+				        			statusText: xhr.statusText,
+				        			error: xhr.error});
+			        	console.log(pulsed)
+			        	pulseLight();
+				};
+				xhr.send();
+	        
+	      }
+
+
+	      function logResult(data){
+	      	console.log(data)
+	      	pulsed = true;
+	      	document.getElementById('output').textContent = data.response;
+			document.getElementById('status').textContent = data.statusText;
+			document.getElementById('error').textContent = data.error;
+	      }
+
+	      function pulseLight(){
+		      	var xhr = new XMLHttpRequest();
+				xhr.open('POST', encodeURI('https://api.lifx.com/v1/lights/all/effects/pulse'));
+				xhr.setRequestHeader('Content-Type', 'application/json');
+		      	xhr.setRequestHeader("Authorization", "Bearer " + token);
+		      	var data = JSON.stringify({
+				    "period": 2,
+				    "age": 5,
+				    "color": "green"
+				})
+				xhr.onload = function() {
+				        var result = xhr.responseText
+				        logResult({response: result,
+				        			statusText: xhr.statusText,
+				        			error: xhr.error
+				        		});
+				        console.log("successful POST response.")
+				};
+				
+	      }
+    </script>
+</body>
+</html>
